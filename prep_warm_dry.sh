@@ -1,0 +1,419 @@
+#!/bin/sh
+#***********************************************************************
+#*                   GNU Lesser General Public License
+#*
+#* This file is part of the SHiELD Build System.
+#*
+#* The SHiELD Build System free software: you can redistribute it
+#* and/or modify it under the terms of the
+#* GNU Lesser General Public License as published by the
+#* Free Software Foundation, either version 3 of the License, or
+#* (at your option) any later version.
+#*
+#* The SHiELD Build System distributed in the hope that it will be
+#* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+#* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#* See the GNU General Public License for more details.
+#*
+#* You should have received a copy of the GNU Lesser General Public
+#* License along with theSHiELD Build System
+#* If not, see <http://www.gnu.org/licenses/>.
+#***********************************************************************
+#
+#  DISCLAIMER: This script is provided as-is for the purpose of continuous
+#              integration software regression testing and as such is
+#              unsupported.
+#
+#SBATCH --ntasks=24
+
+# Dry baroclinic wave
+# Also demonstrates the plev diagnostic capability
+
+# case specific details
+res=96
+MEMO="solo.BCdry"  # Changed from "solo.BCmoist" to "solo.BCdry"
+TYPE="nh"         # choices:  nh, hydro
+MODE="64bit"      # choices:  32bit, 64bit
+GRID="C$res"
+HYPT="on"         # choices:  on, off  (controls hyperthreading)
+COMP="repro"       # choices:  debug, repro, prod
+
+# directory structure
+# WORKDIR=${SCRATCHDIR:-${BUILDDIR}}/CI/BATCH-CI/${GRID}.${MEMO}/
+# executable=${BUILDDIR}/Build/bin/SOLO_${TYPE}.${COMP}.${MODE}.${COMPILER}.x
+
+# changeable parameters
+    # dycore definitions
+    npx="97"
+    npy="97"
+    npz="32"
+    layout_x="2"
+    layout_y="2"
+    io_layout="1,1" #Want to increase this in a production run??
+    nthreads="2"
+
+    # run length
+    days="15"
+    hours="0"
+    minutes="0"
+    seconds="0"
+    dt_atmos="900"
+
+    # set variables in input.nml for initial run
+    ecmwf_ic=".F."
+    mountain=".F."
+    external_ic=".F."
+    warm_start=".T."
+    na_init=0  # Changed from 1 to 0 for dry case
+    curr_date="0,0,0,0"
+
+if [ ${TYPE}="nh" ]; then
+  # non-hydrostatic options
+  make_nh=".T."
+  hydrostatic=".F."
+  phys_hydrostatic=".F."     # can be tested
+  use_hydro_pressure=".F."   # can be tested
+  consv_te="1."
+else
+  # hydrostatic options
+  make_nh=".F."
+  hydrostatic=".T."
+  phys_hydrostatic=".F."     # will be ignored in hydro mode
+  use_hydro_pressure=".T."   # have to be .T. in hydro mode
+  consv_te="0."
+fi
+
+# variables for hyperthreading
+if [ ${HYPT} = "on" ] ; then
+  hyperthread=".true."
+  div=2
+else
+  hyperthread=".false."
+  div=1
+fi
+skip=`expr ${nthreads} \/ ${div}`
+
+# when running with threads, need to use the following command
+npes=`expr ${layout_x} \* ${layout_y} \* 6 `
+LAUNCHER=${LAUNCHER:-srun}
+if [ ${LAUNCHER} = 'srun' ] ; then
+    export SLURM_CPU_BIND=verbose
+    run_cmd="${LAUNCHER} --label --ntasks=$npes --cpus-per-task=$skip $CONTAINER ./${executable##*/}"
+else
+    export MPICH_ENV_DISPLAY=YES
+    run_cmd="${LAUNCHER} -np $npes $CONTAINER ./${executable##*/}"
+fi
+
+# # set up the run area
+# \rm -rf $WORKDIR
+# mkdir -p $WORKDIR
+# cd $WORKDIR
+# mkdir -p RESTART
+# mkdir -p INPUT
+cp RESTART/* INPUT/
+
+# # copy over the executable
+# cp $executable .
+
+# copy over the tables
+#
+# create an empty data_table
+touch data_table
+
+#
+# build the diag_table with the experiment name and date stamp
+cat > diag_table << EOF
+${GRID}.${MODE}
+0 0 0 0 0 0
+"grid_spec",              -1,  "months",   1, "days",  "time"
+"atmos_static",           -1,  "hours",    1, "hours", "time"
+"atmos_4x_hourly",             15, "minutes",  1, "hours",  "time"
+"atmos_4x_hourly_ave",         15, "minutes",  1, "hours",  "time"
+"atmos_daily",                 24, "hours",  1, "days",  "time"
+"atmos_daily_ave",             24, "hours",  1, "days",  "time"
+# "atmos_10day_ave",           10, "days",  1, "days",  "time"
+#output variables
+#=======================
+# ATMOSPHERE DIAGNOSTICS
+#=======================
+###
+# grid_spec
+###
+ "dynamics", "grid_lon", "grid_lon", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "grid_lat", "grid_lat", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "grid_lont", "grid_lont", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "grid_latt", "grid_latt", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "area",     "area",     "grid_spec", "all", .false.,  "none", 2,
+#### plevs
+ "dynamics",  "h_plev",       "h_plev",      "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "u_plev",       "u_plev",      "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "v_plev",       "v_plev",      "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "t_plev",       "t_plev",      "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "q_plev",       "q_plev",      "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "omg_plev",     "omg_plev",    "atmos_daily",  "all",  .false.,  "none",  2
+# Removed q_plev and omg_plev diagnostics since moisture variables are not present in dry case
+
+#### plevs highfreq
+ "dynamics",  "h_plev",       "h_plev",      "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "u_plev",       "u_plev",      "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "v_plev",       "v_plev",      "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "t_plev",       "t_plev",      "atmos_4x_hourly",  "all",  .false.,  "none",  2
+# Removed q_plev and omg_plev high-frequency diagnostics
+ "dynamics",  "q_plev",       "q_plev",      "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "omg_plev",     "omg_plev",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
+
+ "dynamics",  "ps",           "PRESsfc",     "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "tq",          "PWAT",        "atmos_4x_hourly", "all", .false., "none", 2
+# Removed precipitation and precipitable water diagnostics since they involve moisture
+
+### misc. plevs 
+ "dynamics",  "vort850",        "VORT850",       "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "vort500",        "VORT500",       "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "vort200",        "VORT200",       "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "pv350K",         "pv350k",        "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "omg500",         "omg500",        "atmos_daily", "all", .false.,  "none", 2
+### average 3d heating tendencies
+# Commented out as they are not needed for dry case
+# "dynamics",  "T_dt_sg",            "T_dt_sg",           "atmos_10day_ave",  "all",  .true.,  "none",  2
+# "dynamics",  "T_dt_gfdlmp",        "T_dt_gfdlmp",       "atmos_10day_ave",  "all",  .true.,  "none",  2
+# "dynamics",  "T_dt_phys",          "T_dt_phys",         "atmos_10day_ave",  "all",  .true.,  "none",  2
+#Layer-mean fields
+# "dynamics", "t_plev_ave", "t_plev_ave", "atmos_daily",  "all",  .false.,  "none",  2
+# "dynamics", "q_plev_ave", "q_plev_ave", "atmos_daily",  "all",  .false.,  "none",  2
+# Removed moisture-related diagnostics
+
+#### Integrated fields
+ "dynamics",  "slp",         "PRMSL",      "atmos_daily", "all", .false.,  "none", 2
+# Removed moisture-related integrated fields such as "tq", "lw", "iw", "ctp"
+ "dynamics",  "ps",          "PRESsfc",     "atmos_daily", "all", .false., "none", 2
+ "dynamics",  "tm",          "TMP500_300", "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "tq",          "PWAT",        "atmos_daily", "all", .false., "none", 2
+# Removed precipitation diagnostic "prec"
+ "dynamics",  "ctp",         "PRESctp",      "atmos_daily", "all", .false., "none", 2
+### Chemistry tracers
+ "dynamics",  "acl",         "acl",        "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "acl2",        "acl2",       "atmos_daily", "all", .false.,  "none", 2
+ "dynamics",  "acly",        "acly",       "atmos_daily", "all", .false.,  "none", 2
+
+###
+# gfs static data
+###
+ "dynamics",      "pk",          "pk",           "atmos_static",      "all", .false.,  "none", 2
+ "dynamics",      "bk",          "bk",           "atmos_static",      "all", .false.,  "none", 2
+ "dynamics",      "hyam",        "hyam",         "atmos_static",      "all", .false.,  "none", 2
+ "dynamics",      "hybm",        "hybm",         "atmos_static",      "all", .false.,  "none", 2
+ "dynamics",      "zsurf",       "HGTsfc",       "atmos_static",      "all", .false.,  "none", 2
+EOF
+
+
+#
+# build the field_table
+cat > field_table <<EOF
+# added by FRE: sphum must be present in atmos
+# specific humidity for moist runs
+ "TRACER", "atmos_mod", "sphum"
+           "longname",     "specific humidity"
+           "units",        "kg/kg"
+       "profile_type", "fixed", "surface_value=1.e30" /
+#idealized tracers
+ "TRACER", "atmos_mod", "cl"
+           "longname",     "cl"
+           "units",        "kg/kg"
+       "profile_type", "fixed", "surface_value=1.e30" /
+#idealized tracers
+ "TRACER", "atmos_mod", "cl2"
+           "longname",     "cl2"
+           "units",        "kg/kg"
+       "profile_type", "fixed", "surface_value=1.e30" /
+EOF
+
+# Removed moisture tracers: liq_wat, rainwat, ice_wat, snowwat, graupel, cld_amt
+
+#
+# build the input.nml
+cat > input.nml <<EOF
+ &diag_manager_nml
+    !flush_nc_files = .false.
+    prepend_date = .F.
+! this diag table creates a lot of files
+! next three lines are necessary
+    max_num_axis_sets = 100
+    max_files = 100
+    max_axes = 240
+    !do_diag_field_log = .T.
+/
+
+ &fms_affinity_nml
+    affinity = .false.
+/
+
+ &fms_io_nml
+       checksum_required   = .false.
+/
+
+ &fms_nml
+       clock_grain = 'ROUTINE',
+       domains_stack_size = 16000000,
+       print_memory_usage = .false.
+/
+
+ &fv_core_nml
+       layout   = $layout_x,$layout_y
+       io_layout = $io_layout
+       npx      = $npx
+       npy      = $npy
+       ntiles   = 6
+       npz    = $npz
+       npz_type = 'gfs'
+       grid_type = 0
+       make_nh = $make_nh
+       fv_debug = .F.
+       range_warn = .F.
+       reset_eta = .F.
+       sg_cutoff = 150.e2 !replaces old "n_sponge"
+       fv_sg_adj = 3600
+       nudge_qv = .F. ! # Changed from .T. to .F. for dry case
+       RF_fast = .F.
+       tau_h2o = 0.
+       tau = 10.
+       rf_cutoff = 30.e2
+       d2_bg_k1 = 0.20
+       d2_bg_k2 = 0.10 ! z2: increased
+       kord_tm = -8
+       kord_mt = 8
+       kord_wz = 8
+       kord_tr = 8
+       hydrostatic = $hydrostatic
+       phys_hydrostatic = $phys_hydrostatic
+       use_hydro_pressure = $use_hydro_pressure
+       beta = 0.
+       a_imp = 1.
+       p_fac = 0.05
+       k_split = 2
+       n_split = 8
+       nwat = 0 ! # Changed from 6 to 0 for dry case
+       na_init = $na_init
+       d_ext = 0.0
+       dnats = 0 ! # Changed from 1 to 0 since no tracers for microphysics
+       d2_bg = 0.
+       nord = 1
+       dddmp = 0.0
+       d4_bg = 0.12
+       do_vort_damp = .F.
+       external_ic = .F. !COLD START
+       is_ideal_case = .T.
+       mountain = .F.
+       hord_mt = 10
+       hord_vt = 10
+       hord_tm = 10
+       hord_dp = 10
+       hord_tr = 8 ! z2: changed
+       adjust_dry_mass = .F.
+       consv_te = 1.
+       consv_am = .T.
+       fill = .F.
+       dwind_2d = .F.
+       print_freq = 6
+       warm_start = $warm_start
+       agrid_vel_rst = .T.
+       restart_from_agrid_winds = .T.
+       z_tracer = .T.
+       fill_dp = .T.
+       adiabatic = .F.
+/
+
+ &integ_phys_nml
+       do_inline_mp = .F.  !# Changed from .T. to .F. since microphysics are not used in dry case
+       do_sat_adj = .F.
+/
+
+&fv_diag_plevs_nml
+    nplev=15
+    levs = 10,50,100,150,200,250,300,400,500,600,700,850,925,975,1000
+    levs_ave = 10,50,100,150,200,250,300,400,500,600,700,850,925,975,1000
+/
+
+&test_case_nml ! cold start
+    test_case = 13
+/
+
+&atmos_model_nml
+       ignore_rst_cksum = .T.
+
+ &main_nml
+       days  = $days
+       hours = $hours
+       minutes = $minutes
+       seconds = $seconds
+       dt_atmos = $dt_atmos
+       current_time =  $curr_date
+       atmos_nthreads = $nthreads
+       use_hyper_thread = $hyperthread
+/
+
+ &external_ic_nml
+       filtered_terrain = .T.
+       levp = 64
+       gfs_dwinds = .T.
+       checker_tr = .F.
+       nt_checker = 0
+/
+
+ &sim_phys_nml
+    do_GFDL_sim_phys = .F.
+/
+
+
+ &gfdl_mp_nml
+       do_sedi_heat = .F.  !# Changed from .T. to .F.
+       do_sedi_w = .F.     !# Changed from .T. to .F.
+       rad_snow = .false.  !# Changed from .true. to .false.
+       rad_graupel = .false.
+       rad_rain = .false.
+       const_vi = .F.
+       const_vs = .F.
+       const_vg = .F.
+       const_vr = .F.
+       vi_max = 1.
+       vs_max = 2.
+       vg_max = 16.
+       vr_max = 16.
+       qi_lim = 1.
+       prog_ccn = .false.
+       do_qa = .false.  
+       tau_l2v = 300.
+       tau_v2l = 90.
+       do_cond_timescale = .false.  
+       rthresh = 10.e-6
+       dw_land  = 0.15
+       dw_ocean = 0.10
+       ql_gen = 1.0e-3
+       ql_mlt = 2.0e-3
+       qs_mlt = 1.e-6
+       qi0_crt = 8.E-5
+       qs0_crt = 3.0e-3
+       tau_i2s = 1000.
+       c_psaci = 0.05
+       c_pgacs = 0.01
+       rh_inc = 0.0
+       rh_inr = 0.0
+       rh_ins = 0.0
+       ccn_l = 300.
+       ccn_o = 100.
+       c_paut =  0.55
+       z_slope_liq  = .T.
+       z_slope_ice  = .T.
+       fix_negative = .true.
+       irain_f = 0
+       icloud_f = 0
+/
+
+!# From LJZ mar 2019
+ &cld_eff_rad_nml
+       reiflag        = 4
+        rewmin = 5.0
+        rewmax = 10.0
+        reimin = 10.0
+        reimax = 150.0
+/
+EOF
