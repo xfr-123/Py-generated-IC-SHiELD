@@ -5,13 +5,13 @@
 #SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
 
-#SBATCH --job-name="BCdry_restart"
+#SBATCH --job-name="shifted_jet"
 
 #SBATCH --output=SHIELD_BC
 
 #SBATCH --mail-type=END
-#SBATCH --mail-user=mingfei5@illinois.edu
+#SBATCH --mail-user=email@server
 
-#SBATCH --account=bbwv-hydro
+#SBATCH --account=running account
 
 srun --ntasks=24 --cpus-per-task=1 singularity exec --no-home /u/xfr123/container/shield_sandbox_checksum.sif /SHiELD_build/Build/bin/SOLO_nh.prod.32bit.gnu.x

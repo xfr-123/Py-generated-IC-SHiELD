@@ -5,14 +5,14 @@
 #SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
 
-#SBATCH --job-name="BCdry_restart"
+#SBATCH --job-name="shifted_jet"
 
 #SBATCH --output=SHIELD_BC
 
 #SBATCH --mail-type=END
-#SBATCH --mail-user=mingfei5@illinois.edu
+#SBATCH --mail-user=email@server
 
-#SBATCH --account=bbwv-hydro
+#SBATCH --account=running account
 
 ./prep_cold.sh
 ./run.sh
