@@ -1,6 +1,6 @@
 #Author: Mingfei Ren
 #Date: 2024-10-26
-#Version: 0.1
+#Version: 1.0
 #Description: This file is used to generate the basic state of the atmosphere, which is the zonal wind field
 
 import numpy as np
@@ -508,245 +508,360 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 class basic_state_generator_gfdl_shift:
-    def __init__(self, b=2.0, n=1, up=1.0, gamma=5e-3, phi_shift=5, eta_fine_factor=100):
+    def __init__(self, b=2.0, n=1, up=1.0, gamma=5e-3, phi_shift=5, eta_fine_factor=1000):
         self.u0 = 35.0  # base u0
         self.b = b
         self.n = n
         self.up = up
-        self.a = 6371.2e3 
-        self.g = 9.80616  
-        self.Rd = 287.05  
-        self.omega = 7.2921e-5 
+        self.a = 6371.229e3
+        self.g = 9.80616
+        self.Rd = 287.05
+        self.omega = 7.2921e-5
         self.eta_t = 0.2  # top layer
-        self.gamma = gamma  
-        self.R = self.a / 10  
-        self.T_v0 = 288.0  
-        
+        self.eta_0 = 0.252
+        self.gamma = gamma
+        self.R = self.a / 10
+        self.T_v0 = 288.0
+
         self.eta_level_original = np.array([
-            0.00100, 0.00395, 0.00808, 0.01361, 0.02064,
-            0.02944, 0.04067, 0.05505, 0.07328, 0.09602,
-            0.12387, 0.15743, 0.19729, 0.24395, 0.29786,
-            0.35909, 0.42660, 0.49748, 0.56756, 0.63328,
-            0.69280, 0.74560, 0.79178, 0.83167, 0.86578,
-            0.89472, 0.91911, 0.93955, 0.95662, 0.97079,
-            0.98256, 0.99223
+            0.00100, 0.00400, 0.00818, 0.01379, 0.02091,
+            0.02983, 0.04121, 0.05579, 0.07420, 0.09704,
+            0.12497, 0.15854, 0.19839, 0.24503, 0.29889,
+            0.36004, 0.42745, 0.49824, 0.56822, 0.63383,
+            0.69326, 0.74599, 0.79209, 0.83192, 0.86597,
+            0.89487, 0.91922, 0.93963, 0.95667, 0.97082,
+            0.98257, 0.99223, 1.00000
         ], dtype=np.float32)
 
-        self.eta_fine_factor = eta_fine_factor  
-        self.phi_grid_original = np.linspace(-np.pi/2, np.pi/2, 180)  
-        self.lambda_grid = np.linspace(-np.pi, np.pi, 360)  
+        # vertical fine factoe
+        self.eta_fine_factor = eta_fine_factor
 
-        self.phi_c = np.deg2rad(30 + phi_shift) 
-        self.lambda_c = np.deg2rad(20)  
+        # original lat-lon grids
+        self.phi_grid_original = np.linspace(-89.95, 89.95, 180 * 10) * np.pi / 180   # 1800
+        self.lambda_grid = np.linspace(-179.95, 179.95, 360 * 10)  * np.pi / 180   # 3600
 
-        self.phi_shift = np.deg2rad(phi_shift) 
+        self.phi_c = np.deg2rad(30 + phi_shift)
+        self.lambda_c = np.deg2rad(20)
+
+        self.phi_shift = np.deg2rad(phi_shift)
+
+        # stored variables for fined geopotential
+        self.Phi_prime_fine_2D = None  # (N_eta_fine, N_phi)
+        self.Phi_prime_fine = None     # (N_eta_fine, N_phi, N_lambda)
 
     def zonal_u(self, eta, phi):
-        
-        eta = np.where(eta == 0, 1e-10, eta) 
+        """
+        calculate the zonal wind on eta-lat grid (independent to lon)
+        """
+        eta = np.where(eta == 0, 1e-10, eta)
+        eta_v = (np.pi / 2) * (eta[:, np.newaxis] - self.eta_0)  # (N_eta, 1)
+        cos_eta_v = np.cos(eta_v) ** (3/2)  # (N_eta, 1)
 
-        eta_v = (np.pi / 2) * (eta[:, np.newaxis] - self.eta_t)  
-        cos_eta_v = np.cos(eta_v) ** (3/2)  
+        sin_term_north = np.sin(2 * (phi - self.phi_shift)) ** 2
+        sin_term_south = np.sin(2 * (phi + self.phi_shift)) ** 2
 
-        sin_term_north = np.sin(2 * (phi - self.phi_shift)) ** 2  
-        sin_term_south = np.sin(2 * (phi + self.phi_shift)) ** 2  
+        # add a dimension for boardcasting
+        sin_term_north = sin_term_north[np.newaxis, :]  # (1, N_phi)
+        sin_term_south = sin_term_south[np.newaxis, :]  # (1, N_phi)
+        u = np.where(
+            phi[np.newaxis, :] >= 0,
+            self.u0 * cos_eta_v * sin_term_north,
+            self.u0 * cos_eta_v * sin_term_south
+        )
 
-        sin_term_north = sin_term_north[np.newaxis, :]  
-        sin_term_south = sin_term_south[np.newaxis, :] 
+        # |phi| < self.phi_shift set to 0.
+        mask = np.abs(phi) < self.phi_shift
+        u[:, mask] = 0.0
 
-        u = np.where(phi[np.newaxis, :] >= 0, 
-                     self.u0 * cos_eta_v * sin_term_north, 
-                     self.u0 * cos_eta_v * sin_term_south)  
-        mask = np.abs(phi) < self.phi_shift 
-        u[:, mask] = 0.0  
-
-        mask2 = np.abs(phi) > np.pi / 2 + self.phi_shift
+        # |phi| > pi/2 + self.phi_shift set to 0.
+        mask2 = np.abs(phi) > np.pi/2 + self.phi_shift
         u[:, mask2] = 0.0
 
-        return u  
+        return u  # (N_eta, N_phi)
 
     def generate_zonal_u_stored(self, eta_grid, phi_grid, IsPerturbation=False):
-       
-        u = self.zonal_u(eta_grid, phi_grid)  # (N_eta, N_phi)
+        """
+        generate wind field.
+        """
 
-        u = np.repeat(u[:, :, np.newaxis], 360, axis=2)  # (N_eta, N_phi, 360)
+        base_u_2D = self.zonal_u(eta_grid, phi_grid)  # (N_eta, N_phi)
 
-        if IsPerturbation:
-            phi = phi_grid[:, np.newaxis]  
-            lambd = self.lambda_grid[np.newaxis, :]  
-            argument = np.sin(self.phi_c) * np.sin(phi) + np.cos(self.phi_c) * np.cos(phi) * np.cos(lambd - self.lambda_c)
+        if not IsPerturbation:
+            #print(base_u_2D.shape)
+            #print(base_u_2D[])
+            return base_u_2D  # (N_eta, N_phi)
+        else:
+            u_3D = np.repeat(base_u_2D[:, :, np.newaxis], len(self.lambda_grid), axis=2)
+         
+            phi_2D = phi_grid[:, np.newaxis]  # (N_phi, 1)
+            lambd_1D = self.lambda_grid[np.newaxis, :]  # (1, N_lambda)
+
+           
+            argument = (
+                np.sin(self.phi_c) * np.sin(phi_2D) +
+                np.cos(self.phi_c) * np.cos(phi_2D) * np.cos(lambd_1D - self.lambda_c)
+            )
             argument = np.clip(argument, -1.0, 1.0)
-            r = self.a * np.arccos(argument)  
-            u_perturbation = self.up * np.exp(-(r / self.R) ** 2)  
+            r = self.a * np.arccos(argument)  # (N_phi, N_lambda)
+            u_perturbation_2D = self.up * np.exp(-(r / self.R) ** 2)
 
-            u += u_perturbation[np.newaxis, :, :]  
-        return u 
+            # broadcast到 eta 维度: (N_eta, N_phi, N_lambda)
+            u_perturbation_3D = u_perturbation_2D[np.newaxis, :, :]
+            u_3D += u_perturbation_3D
+
+            return u_3D
 
     def generate_zonal_u(self, IsPerturbation=False):
-        u = self.generate_zonal_u_stored(self.eta_level_original, self.phi_grid_original, IsPerturbation=IsPerturbation)  # 形状: (32, 180, 360)
-        return np.expand_dims(u, axis=0)  # 形状: (1, 32, 180, 360)
+        """
+        return 4-D zonal wind
+        """
+        eta = (self.eta_level_original[1:] + self.eta_level_original[:-1]) * 0.5
+        u_stored = self.generate_zonal_u_stored(
+            eta,
+            self.phi_grid_original,
+            IsPerturbation=IsPerturbation
+        )
+        
+        if u_stored.ndim == 2:
+            # (N_eta, N_phi) -> (N_eta, N_phi, N_lambda)
+            u_3D = np.repeat(u_stored[:, :, np.newaxis], len(self.lambda_grid), axis=2)
+        else:
+            u_3D = u_stored
+        
+        #print(u_3D.shape)
+        #u_3D = u_3D[:-1,:,:] #(33->32)
+        return np.expand_dims(u_3D, axis=0)
 
     def generate_meridional_v(self):
-        meridional_v = np.zeros((32, 180, 360))
+        """
+        return 4-D meridinal wind
+        """
+        meridional_v = np.zeros((32, 180 * 10, 360 * 10))
         return np.expand_dims(meridional_v, axis=0)
 
     def generate_vertical_w(self):
-        vertical_w = np.zeros((32, 180, 360))
+        """
+        return 4-D vertical motion
+        """
+        vertical_w = np.zeros((32, 180 * 10, 360 * 10))
         return np.expand_dims(vertical_w, axis=0)
 
     def generate_geopotential_prime_fine(self, plot_debug=False):
-        
+        """
+        numerical method to generate fined geopotential
+        """
         N_eta_original = len(self.eta_level_original)
-        eta_fine_factor = self.eta_fine_factor 
-        N_eta_fine = N_eta_original * eta_fine_factor  # e.g., 32 * 100 = 3200
-        eta_grid_fine = np.linspace(self.eta_level_original[0], self.eta_level_original[-1], N_eta_fine)  #  (N_eta_fine,)
+        eta_fine_factor = self.eta_fine_factor
+        N_eta_fine = N_eta_original * eta_fine_factor
+        eta_grid_fine = np.linspace(
+            self.eta_level_original[0],
+            self.eta_level_original[-1],
+            N_eta_fine
+        )
 
-        u_fine = self.generate_zonal_u_stored(eta_grid_fine, self.phi_grid_original, IsPerturbation=False)  # (N_eta_fine, 180, 360)
+        # ---- (1) u_fine(eta,phi) ----
+        u_fine_2D = self.generate_zonal_u_stored(
+            eta_grid_fine,
+            self.phi_grid_original,
+            IsPerturbation=False
+        )  # (N_eta_fine, N_phi)
 
-        
-        a = self.a  
-        Omega = self.omega  
+        a = self.a
+        Omega = self.omega
 
-        sin_phi = np.sin(self.phi_grid_original)  
-        tan_phi = np.tan(self.phi_grid_original)  
+        sin_phi_1D = np.sin(self.phi_grid_original)    # (N_phi,)
+        tan_phi_1D = np.tan(self.phi_grid_original)    # (N_phi,)
+        # avoid infinity at poler region
+        tan_phi_1D = np.where(
+            np.abs(self.phi_grid_original) >= (np.pi/2 - 1e-6),
+            0.0,
+            tan_phi_1D
+        )
 
-        tan_phi = np.where(np.abs(self.phi_grid_original) >= (np.pi/2 - 1e-6), 0.0, tan_phi)  
+        sin_phi_2D = sin_phi_1D[np.newaxis, :]  # (1, N_phi)
+        tan_phi_2D = tan_phi_1D[np.newaxis, :]  # (1, N_phi)
 
-        sin_phi = sin_phi[np.newaxis, :, np.newaxis]  
-        tan_phi = tan_phi[np.newaxis, :, np.newaxis]  
+        # ---- (2) caculate integrand f_2D, shape: (N_eta_fine, N_phi) ----
+        f_2D = -a * u_fine_2D * (2 * Omega * sin_phi_2D + (u_fine_2D / a) * tan_phi_2D)
 
-        f = -a * u_fine * (2 * Omega * sin_phi + (u_fine / a) * tan_phi)  
+        # ---- (3) integrate along phi cumtrapz ----
+        Phi_prime_fine_2D = cumtrapz(
+            f_2D,
+            self.phi_grid_original,
+            axis=1,
+            initial=0.0
+        )  # (N_eta_fine, N_phi)
 
-        Phi_prime_fine = cumtrapz(f, self.phi_grid_original, axis=1, initial=0.0)  
+        # ---- (4) minus the average to keep the whole phi' to 0 ----
+        cos_phi_1D = np.cos(self.phi_grid_original)
+        Phi_cos_2D = Phi_prime_fine_2D * cos_phi_1D[np.newaxis, :]  # (N_eta_fine, N_phi)
+        integral_1D = trapz(Phi_cos_2D, self.phi_grid_original, axis=1)  # (N_eta_fine,)
+        Phi_mean_1D = integral_1D / 2.0  # (N_eta_fine,)
 
-        cos_phi = np.cos(self.phi_grid_original)  
-        Phi_cos = Phi_prime_fine * cos_phi[np.newaxis, :, np.newaxis]  
-        integral = trapz(Phi_cos, self.phi_grid_original, axis=1)  
 
-        Phi_mean = integral / 2.0  
-        Phi_mean = Phi_mean[:, np.newaxis, :]  
-        Phi_fine_adjusted = Phi_prime_fine - Phi_mean  
-        first_term = (self.T_v0 * self.g / self.gamma) * (1 - eta_grid_fine ** (self.Rd * self.gamma / self.g))  # (N_eta_fine,)
+        Phi_mean_2D = Phi_mean_1D[:, np.newaxis]  # (N_eta_fine, 1)
+        Phi_fine_adjusted_2D = Phi_prime_fine_2D - Phi_mean_2D
 
-        mask = eta_grid_fine < self.eta_t 
+        # ---- (5) add first_term ----
+        first_term = (self.T_v0 * self.g / self.gamma) * (
+            1 - eta_grid_fine ** (self.Rd * self.gamma / self.g)
+        )  # (N_eta_fine,)
+
+        # if eta < eta_t, add some modification
+        mask = eta_grid_fine < self.eta_t
+
         first_term[mask] -= 4.8e5 * self.Rd * (
-            (np.log(eta_grid_fine[mask] / self.eta_t) + 137 / 60) * self.eta_t ** 5
-            - 5 * self.eta_t ** 4 * eta_grid_fine[mask]
-            + 5 * self.eta_t ** 3 * eta_grid_fine[mask] ** 2
-            - (10 / 3) * self.eta_t ** 2 * eta_grid_fine[mask] ** 3
-            + (5 / 4) * self.eta_t * eta_grid_fine[mask] ** 4
-            - (1 / 5) * eta_grid_fine[mask] ** 5
-        )  
+            (np.log(eta_grid_fine[mask] / self.eta_t) + 137/60) * self.eta_t**5
+            - 5 * self.eta_t**4 * eta_grid_fine[mask]
+            + 5 * self.eta_t**3 * eta_grid_fine[mask]**2
+            - (10/3) * self.eta_t**2 * eta_grid_fine[mask]**3
+            + (5/4) * self.eta_t * eta_grid_fine[mask]**4
+            - (1/5) * eta_grid_fine[mask]**5
+        )
 
-        first_term = first_term[:, np.newaxis, np.newaxis]  
-        Phi_prime_fine = Phi_fine_adjusted + first_term  
-        self.Phi_prime_fine = Phi_prime_fine  
+
+        first_term_2D = first_term[:, np.newaxis]
+        Phi_prime_fine_2D = Phi_fine_adjusted_2D + first_term_2D
+        '''
+
+        Phi_prime_fine_3D = np.repeat(
+            Phi_prime_fine_2D[:, :, np.newaxis],
+            len(self.lambda_grid),
+            axis=2
+        )
+        It seems that 3D results is resource commending and useless.
+        '''
+        # save 2-D results
+        self.Phi_prime_fine_2D = Phi_prime_fine_2D
+        #self.Phi_prime_fine = Phi_prime_fine_3D
+
         if plot_debug:
-            plt.figure(figsize=(12, 6))
-            plt.plot(np.degrees(self.phi_grid_original), f[0, :, 0], label='Integrand f(phi)')
-            plt.title('Integrand f(phi) for first eta and first longitude')
+            plt.figure(figsize=(12, 5))
+            plt.plot(np.degrees(self.phi_grid_original), f_2D[0, :], label='Integrand f(phi) for first eta')
+            plt.title('Integrand f(phi) for first eta')
             plt.xlabel('phi (degrees)')
             plt.ylabel('f(phi)')
             plt.legend()
             plt.grid(True)
             plt.show()
 
-            plt.figure(figsize=(12, 6))
-            plt.plot(np.degrees(self.phi_grid_original), Phi_prime_fine[0, :, 0], label="Phi_prime_fine (Geopotential)")
-            plt.title('Complete Geopotential Phi_prime_fine for first eta and first longitude')
+            plt.figure(figsize=(12, 5))
+            plt.plot(np.degrees(self.phi_grid_original), Phi_prime_fine_2D[0, :],
+                     label="Phi_prime_fine_2D (Geopotential) for first eta")
+            plt.title('Phi_prime_fine_2D for first eta')
             plt.xlabel('phi (degrees)')
-            plt.ylabel("Phi'_fine (m²/s²)")
+            plt.ylabel("Phi'_fine (m^2/s^2)")
             plt.legend()
             plt.grid(True)
             plt.show()
 
     def generate_geopotential(self, plot_debug=False):
-        
-        if not hasattr(self, 'Phi_prime_fine'):
+        """
+        interpolate to eta_level_original
+        """
+        if self.Phi_prime_fine_2D is None:
             self.generate_geopotential_prime_fine(plot_debug=plot_debug)
 
-        N_eta_fine = self.Phi_prime_fine.shape[0]
+        N_eta_fine = self.Phi_prime_fine_2D.shape[0]
         eta_grid_fine = np.linspace(self.eta_level_original[0], self.eta_level_original[-1], N_eta_fine)
+
+
+        Phi_prime_fine_2D = self.Phi_prime_fine_2D
 
         interp_func = interp1d(
             eta_grid_fine,
-            self.Phi_prime_fine,
+            Phi_prime_fine_2D,  
             kind='cubic',
-            axis=0,
+            axis=0, 
             bounds_error=False,
             fill_value="extrapolate"
         )
+        # (N_eta_original, N_phi)
+        Phi_original_2D = interp_func(self.eta_level_original)
 
-        Phi_original = interp_func(self.eta_level_original)  
-        Phi = Phi_original[np.newaxis, :, :, :]  
-        return Phi  
+        # (N_eta_original, N_phi) -> (N_eta_original, N_phi, N_lambda)
+        Phi_original_3D = np.repeat(
+            Phi_original_2D[:, :, np.newaxis],
+            len(self.lambda_grid),
+            axis=2
+        )
+        # (1, N_eta_original, N_phi, N_lambda)
+        Phi = np.expand_dims(Phi_original_3D, axis=0)
+        return Phi
+
     def generate_T_v(self):
-        
-        if not hasattr(self, 'Phi_prime_fine'):
+        """
+        calculate T_v
+        """
+        if self.Phi_prime_fine_2D is None:
             self.generate_geopotential_prime_fine()
 
-        N_eta_fine = self.Phi_prime_fine.shape[0]
+        N_eta_fine = self.Phi_prime_fine_2D.shape[0]
         eta_grid_fine = np.linspace(self.eta_level_original[0], self.eta_level_original[-1], N_eta_fine)
+
+        #  dPhi'/deta
+        Phi_prime_fine_2D = self.Phi_prime_fine_2D  # (N_eta_fine, N_phi)
         delta_eta = eta_grid_fine[1] - eta_grid_fine[0]
 
-        dPhi_prime_deta = np.zeros_like(self.Phi_prime_fine)  
+        # calculate vertical difference
+        dPhi_prime_deta_2D = np.zeros_like(Phi_prime_fine_2D)  # (N_eta_fine, N_phi)
 
-        dPhi_prime_deta[1:-1] = (self.Phi_prime_fine[2:, :, :] - self.Phi_prime_fine[:-2, :, :]) / (2 * delta_eta)
+        dPhi_prime_deta_2D[1:-1] = (
+            Phi_prime_fine_2D[2:, :] - Phi_prime_fine_2D[:-2, :]
+        ) / (2 * delta_eta)
 
-        dPhi_prime_deta[0] = (self.Phi_prime_fine[1, :, :] - self.Phi_prime_fine[0, :, :]) / delta_eta
+        dPhi_prime_deta_2D[0] = (
+            Phi_prime_fine_2D[1, :] - Phi_prime_fine_2D[0, :]
+        ) / delta_eta
 
-        dPhi_prime_deta[-1] = (self.Phi_prime_fine[-1, :, :] - self.Phi_prime_fine[-2, :, :]) / delta_eta
+        dPhi_prime_deta_2D[-1] = (
+            Phi_prime_fine_2D[-1, :] - Phi_prime_fine_2D[-2, :]
+        ) / delta_eta
 
-        T_v_fine = - (eta_grid_fine[:, np.newaxis, np.newaxis] / self.Rd) * dPhi_prime_deta  # (N_eta_fine, 180, 360)
+        #  T_v_fine_2D = -(eta / Rd) * dPhi'/deta
+        eta_2D = eta_grid_fine[:, np.newaxis]  # (N_eta_fine, 1)
+        T_v_fine_2D = - (eta_2D / self.Rd) * dPhi_prime_deta_2D  # (N_eta_fine, N_phi)
 
+        # interpolate
         interp_func = interp1d(
             eta_grid_fine,
-            T_v_fine,
+            T_v_fine_2D,
             kind='cubic',
             axis=0,
             bounds_error=False,
             fill_value="extrapolate"
         )
+        eta = (self.eta_level_original[1:] + self.eta_level_original[:-1]) * 0.5
+        T_v_original_2D = interp_func(eta)  # (N_eta, N_phi)
 
-        T_v_original = interp_func(self.eta_level_original)  
-
-        T_v = T_v_original[np.newaxis, :, :, :]  
-
-        return T_v  
-
-    def generate_phis(self):
-        
-        surface_geopotential = np.zeros((180, 360))
-
-        first_term = (self.T_v0 * self.g / self.gamma) * (1 - 1 ** (self.Rd * self.gamma / self.g))  # eta=1
-
-        phi = self.phi_grid_original  
-
-        cos_eta_v = np.cos((np.pi / 2) * (1 - self.eta_t)) ** (3/2)
-        u0_cos_eta_v = self.u0 * cos_eta_v
-
-        inner_term1 = -2 * np.sin(phi) ** 6 * (np.cos(phi) ** 2 + 1 / 3) + 10 / 63
-        inner_term2 = (8 / 5) * np.cos(phi) ** 3 * (np.sin(phi) ** 2 + 2 / 3) - np.pi / 4
-
-        second_term = u0_cos_eta_v * (inner_term1 * u0_cos_eta_v + inner_term2 * self.a * self.omega)  
-
-        surface_geopotential[:, :] = first_term + second_term[:, np.newaxis]  
-
-        return np.expand_dims(surface_geopotential, axis=0)  
-    
+        # (N_eta, N_phi, N_lambda)
+        T_v_3D = np.repeat(
+            T_v_original_2D[:, :, np.newaxis],
+            len(self.lambda_grid),
+            axis=2
+        )
+        #  (1, N_eta, N_phi, N_lambda)
+        T_v = np.expand_dims(T_v_3D, axis=0)
+        return T_v#[:,:-1,:,:]
 
     def generate_DZ(self):
-        
-        Phi = self.generate_geopotential()  
-
-        DZ = np.zeros_like(Phi)  
-        DZ[:, :-1, :, :] = (Phi[:, 1:, :, :] - Phi[:, :-1, :, :]) / self.g  
-
-        DZ[:, -1, :, :] = DZ[:, -2, :, :]  
-
-        return DZ  
+        """
+        DZ = (Phi[k+1] - Phi[k]) / g with shape: (1, N_eta, N_phi, N_lambda)。
+        """
+        Phi = self.generate_geopotential()  # (1, N_eta, N_phi, N_lambda)
+        DZ = np.zeros_like(Phi)
+        DZ[:, :-1, :, :] = (Phi[:, 1:, :, :] - Phi[:, :-1, :, :]) / self.g
+        DZ[:, -1, :, :] = DZ[:, -2, :, :]
+        return DZ[:,:-1,:,:]
     
+    def generate_phis(self):
+        Phi = self.generate_geopotential()
+        return Phi[:,-1,:,:]
+
+
+
 
 if __name__ == '__main__':
-    u = basic_state_generator_gfdl()
-    print(u.generate_T_v())
+    u = basic_state_generator_gfdl_shift()
+    T_v = u.generate_T_v()
+    print("T_v shape =", T_v.shape)
