@@ -61,7 +61,7 @@ COMP="repro"       # choices:  debug, repro, prod
 
     # set variables in input.nml for initial run
     ecmwf_ic=".F."
-    mountain=".F."
+    mountain=".T."
     external_ic=".F."
     warm_start=".T."
     na_init=0  # Changed from 1 to 0 for dry case
@@ -69,7 +69,7 @@ COMP="repro"       # choices:  debug, repro, prod
 
 if [ ${TYPE}="nh" ]; then
   # non-hydrostatic options
-  make_nh=".T."
+  make_nh=".F."
   hydrostatic=".F."
   phys_hydrostatic=".F."     # can be tested
   use_hydro_pressure=".F."   # can be tested
@@ -302,7 +302,7 @@ cat > input.nml <<EOF
        do_vort_damp = .F.
        external_ic = .F. !COLD START
        is_ideal_case = .T.
-       mountain = .F.
+       mountain = $mountain!.F.
        hord_mt = 10
        hord_vt = 10
        hord_tm = 10
@@ -319,7 +319,7 @@ cat > input.nml <<EOF
        restart_from_agrid_winds = .T.
        z_tracer = .T.
        fill_dp = .T.
-       adiabatic = .F.
+
 /
 
  &integ_phys_nml
@@ -336,9 +336,6 @@ cat > input.nml <<EOF
 &test_case_nml ! cold start
     test_case = 13
 /
-
-&atmos_model_nml
-       ignore_rst_cksum = .T.
 
  &main_nml
        days  = $days
@@ -365,55 +362,6 @@ cat > input.nml <<EOF
 
 
  &gfdl_mp_nml
-       do_sedi_heat = .F.  !# Changed from .T. to .F.
-       do_sedi_w = .F.     !# Changed from .T. to .F.
-       rad_snow = .false.  !# Changed from .true. to .false.
-       rad_graupel = .false.
-       rad_rain = .false.
-       const_vi = .F.
-       const_vs = .F.
-       const_vg = .F.
-       const_vr = .F.
-       vi_max = 1.
-       vs_max = 2.
-       vg_max = 16.
-       vr_max = 16.
-       qi_lim = 1.
-       prog_ccn = .false.
        do_qa = .false.  
-       tau_l2v = 300.
-       tau_v2l = 90.
-       do_cond_timescale = .false.  
-       rthresh = 10.e-6
-       dw_land  = 0.15
-       dw_ocean = 0.10
-       ql_gen = 1.0e-3
-       ql_mlt = 2.0e-3
-       qs_mlt = 1.e-6
-       qi0_crt = 8.E-5
-       qs0_crt = 3.0e-3
-       tau_i2s = 1000.
-       c_psaci = 0.05
-       c_pgacs = 0.01
-       rh_inc = 0.0
-       rh_inr = 0.0
-       rh_ins = 0.0
-       ccn_l = 300.
-       ccn_o = 100.
-       c_paut =  0.55
-       z_slope_liq  = .T.
-       z_slope_ice  = .T.
-       fix_negative = .true.
-       irain_f = 0
-       icloud_f = 0
-/
-
-!# From LJZ mar 2019
- &cld_eff_rad_nml
-       reiflag        = 4
-        rewmin = 5.0
-        rewmax = 10.0
-        reimin = 10.0
-        reimax = 150.0
 /
 EOF
