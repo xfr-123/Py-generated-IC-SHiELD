@@ -69,7 +69,7 @@ COMP="repro"       # choices:  debug, repro, prod
 
 if [ ${TYPE}="nh" ]; then
   # non-hydrostatic options
-  make_nh=".F."
+  make_nh=".T."
   hydrostatic=".F."
   phys_hydrostatic=".F."     # can be tested
   use_hydro_pressure=".F."   # can be tested
@@ -151,6 +151,8 @@ ${GRID}.${MODE}
  "dynamics",  "t_plev",       "t_plev",      "atmos_daily",  "all",  .false.,  "none",  2
  "dynamics",  "q_plev",       "q_plev",      "atmos_daily",  "all",  .false.,  "none",  2
  "dynamics",  "omg_plev",     "omg_plev",    "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "u100m",     "u100m",    "atmos_daily",  "all",  .false.,  "none",  2
+ "dynamics",  "v100m",     "v100m",    "atmos_daily",  "all",  .false.,  "none",  2
 # Removed q_plev and omg_plev diagnostics since moisture variables are not present in dry case
 
 #### plevs highfreq
@@ -161,6 +163,8 @@ ${GRID}.${MODE}
 # Removed q_plev and omg_plev high-frequency diagnostics
  "dynamics",  "q_plev",       "q_plev",      "atmos_4x_hourly",  "all",  .false.,  "none",  2
  "dynamics",  "omg_plev",     "omg_plev",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "u100m",     "u100m",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "v100m",     "v100m",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
 
  "dynamics",  "ps",           "PRESsfc",     "atmos_4x_hourly",  "all",  .false.,  "none",  2
  "dynamics",  "tq",          "PWAT",        "atmos_4x_hourly", "all", .false., "none", 2

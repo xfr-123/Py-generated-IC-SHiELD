@@ -64,7 +64,7 @@ COMP="repro"       # choices:  debug, repro, prod
     mountain=".F."
     external_ic=".F."
     warm_start=".F."
-    na_init=1
+    na_init=0
     curr_date="0,0,0,0"
 
 if [ ${TYPE}="nh" ]; then
@@ -336,7 +336,7 @@ cat > input.nml <<EOF
 /
 
  &integ_phys_nml
-       do_inline_mp = .T.
+       do_inline_mp = .F.
        do_sat_adj = .F.
 /
 

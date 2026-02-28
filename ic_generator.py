@@ -4,6 +4,7 @@ import xarray as xr
 import sparselt.esmf
 import sparselt.xr
 from base_state import basic_state_generator, basic_state_generator_gfdl, basic_state_generator_gfdl_shift
+import os
 
 res_path = './' + 'RESTART/'
 cache_path = './' + 'CACHE/'
@@ -11,11 +12,22 @@ cache_path = './' + 'CACHE/'
 #read from input
 parser = argparse.ArgumentParser(description="Process variables with perturbation and shift.")
 parser.add_argument('--IsPerturbation', action='store_true', help="Set this flag if perturbation is applied.")
-parser.add_argument('--Shift', type=float, required=True, help="Shift value for phi.")
+parser.add_argument('--Shift', type=float, default = 0, help="Shift value for phi.")
+parser.add_argument('--b', type=float, default = 2.0, help="b, depth of the western jet, or wind shear")
+parser.add_argument('--n', type=float, default = 1.0, help="Width of he western jet.")
+parser.add_argument('--gamma', type=float, default = 5e-3, help="lapse rate")
+parser.add_argument('--phi_c', type=float, default = 40, help="latitude center of perturbation")
+parser.add_argument('--RH0', type=float, default = 0.8, help="Surface relative humidity")
 args = parser.parse_args()
 
 IsPerturbation = args.IsPerturbation
 Shift = args.Shift
+b = args.b
+n = args.n
+gamma = args.gamma
+phi_c = args.phi_c
+RH0 = args.RH0
+
 
 ds_list = []
 for i in range(1, 7):
@@ -28,7 +40,8 @@ ds = xr.concat(ds_list, dim='tile')
 
 variable_list = ['ua', 'va', 'W', 'DZ', 'T', 'phis']
 
-base_state_generator = basic_state_generator_gfdl_shift(phi_shift=Shift)
+base_state_generator = basic_state_generator_gfdl_shift(phi_shift=Shift, 
+b=b, n=n, gamma=gamma,phi_c=phi_c)
 
 # Load the transforms once outside the function
 transform_to_180x360 = sparselt.esmf.load_weights(
@@ -56,130 +69,70 @@ eta_level_original = np.array([
 akbk = xr.open_dataset('./RESTART/fv_core.res.nc')
 eta_level_original = np.array((akbk['ak']*1e-5+akbk['bk']).values).squeeze()
 akbk.close()
-def generate_ua_for_one_eta(
-    input_nc_path_c96: str,
-    eta_val: float,
-    eta_t: float,
-    phi_shift: float = 0,
-    u0: float = 35.0,
-    IsPerturbation = False
-) -> np.ndarray:
 
-    # Read c96 files
-    ds_c96 = xr.open_dataset(input_nc_path_c96, decode_times=False)
-    lats = ds_c96['lons'].values  # (193,193)
-    lons = ds_c96['lats'].values  # (193,193)
-    ds_c96.close()
+def RH_profile(eta, RH0):
+    eta = np.asarray(eta)
+    RH = np.zeros_like(eta, dtype=float)
 
-    lam = np.deg2rad(lats)
+    m1 = (eta >= 0.0) & (eta < 0.1)
+    m2 = (eta >= 0.1) & (eta < 0.3)
+    m3 = (eta >= 0.3) & (eta <= 0.8)
+    m4 = (eta > 0.8)
 
-    phi = np.deg2rad(lons)
+    RH[m1] = 0.0
+    RH[m2] = (3.5 * eta[m2] - 0.35) * RH0
+    RH[m3] = 0.7 * RH0
+    RH[m4] = (1.5 * eta[m4] - 0.5) * RH0
 
-    eta_val = eta_val if eta_val != 0 else 1e-10
-    
-
-    eta_v = (np.pi / 2) * (eta_val - eta_t)
-    cos_eta_v = np.cos(eta_v) ** (3.0/2.0)
-
-    phi_shift = np.deg2rad(phi_shift)
-
-    #  sin_term_north, sin_term_south
-    sin_term_north = np.sin(2 * (phi - phi_shift)) ** 2
-    sin_term_south = np.sin(2 * (phi + phi_shift)) ** 2
+    return RH
 
 
-    u_2d = np.where(
-        phi >= 0,
-        u0 * cos_eta_v * sin_term_north,
-        u0 * cos_eta_v * sin_term_south
-    )
-    #print(u_2d.max(), u_2d.min())
-
-    mask_narrow = (np.abs(phi) < phi_shift)
-    u_2d[mask_narrow] = 0.0
-    mask_wide = (np.abs(phi) > (np.pi/2 + phi_shift))
-    u_2d[mask_wide] = 0.0
-
-    if IsPerturbation:
-
-        phi_c = np.deg2rad(40) + phi_shift 
-        lam_c = np.deg2rad(20)             
-        a = 6371.229e3 
-        up = 1.0       
-        R = a/10  
-
-        # ------------------------------------------------
-        #    argument = sin(phi_c)*sin(phi) + cos(phi_c)*cos(phi)*cos(lam - lam_c)
-        # ------------------------------------------------
-        argument = (np.sin(phi_c) * np.sin(phi) +
-                    np.cos(phi_c) * np.cos(phi) * np.cos(lam - lam_c))
-        argument = np.clip(argument, -1.0, 1.0)   
-        r = a * np.arccos(argument)               
-
-        #  u_perturb = up * exp(- (r / R)^2 )
-        u_perturb = up * np.exp(-(r / R) ** 2)
-
-        # 叠加到原始风场
-        u_2d += u_perturb
-
-    # 从 (193,193) -> (96,96) - [1:193:2, 1:193:2]
-    ua_2d = u_2d[1:193:2, 1:193:2]  # shape (96,96)
-
-    #print(ua_2d)
-
-    return ua_2d
-
-def generate_ua_all_eta(
-    input_nc_path_c96: str,
-    eta_level_original: np.ndarray,
-    phi_shift: float = 0,
-    u0: float = 35.0,
-    IsPerturbation = False
-) -> xr.DataArray:
-
-    ua_3d_list = []
+def es(T):
+    return 611.21 * np.exp(17.67 * (T - 273.15) / (T - 29.65))
 
 
-    for eta_val in eta_level_original:
-
-        ua_2d = generate_ua_for_one_eta(
-            input_nc_path_c96=input_nc_path_c96,
-            eta_val=eta_val,
-            eta_t=0.252,
-            phi_shift=phi_shift,
-            u0=u0,
-            IsPerturbation=IsPerturbation
-        )
-        # ua_2d shape (96,96)，放到列表
-        ua_3d_list.append(ua_2d[np.newaxis, :, :])  # shape (1,96,96)
-
-    ua_3d = np.concatenate(ua_3d_list, axis=0)
-
-    nlev = ua_3d.shape[0]  # 等于 len(eta_level_original)
+def q_from_es_RH(es_vals, RH, p):
+    eps = 0.622
+    return eps * RH * es_vals / (p - (1 - eps) * RH * es_vals)
 
 
-    # build DataArray
-    da_ua_3d = xr.DataArray(
-        data=ua_3d,  # shape (nlev,96,96)
-        dims=("z", "y", "x"),
-        coords={
-            "z": eta_level_original,
-            "y": np.arange(96),
-            "x": np.arange(96)
-        },
-        name="ua"
-    )
-    da_ua_3d.attrs["description"] = "zonal wind for all eta levels"
-    da_ua_3d.attrs["units"] = "m/s"
+def compute_q_T_iterative(T_v, RH0, eta, tol=0.001, max_iter=10):
+    """
+    T_v:  (time, nlev, y, x)
+    RH0:  scalar or (nlev,)
+    eta:  1D array of length nlev (mid-level)
+    """
+    T_v = np.asarray(T_v)
+    nt, nz, ny, nx = T_v.shape
 
 
-    da_ua_4d = da_ua_3d.expand_dims(dim={"time": [1.0]})
-    # shape (time=1, z=nlev, y=96, x=96)
+    RH1d = RH_profile(eta, RH0)              # (nz,)
+    RH  = RH1d[None, :, None, None]          # (1,nz,1,1)
 
 
-    # da_ua_4d = da_ua_4d.transpose("time","z","y","x") =
+    p_mid = eta * 1e5                        # (nz,)
+    p     = p_mid[None, :, None, None]       # (1,nz,1,1)
 
-    return da_ua_4d
+    T     = T_v.copy()
+    q_old = np.zeros_like(T)
+    for _ in range(max_iter):
+        es_vals = es(T)                      # (1,nz,ny,nx)
+
+        q_new = q_from_es_RH(es_vals, RH, p)
+        T     = T_v / (1 + 0.608 * q_new)
+
+        denom    = np.maximum(np.abs(q_old), np.abs(q_new))
+        denom[denom==0] = 1.0
+        rel_diff = np.abs(q_new - q_old)/denom
+        if np.nanmax(rel_diff) < tol:
+            break
+        q_old = q_new.copy()
+
+        #print(T/T_v)
+
+        print('interative T and q finished.')
+
+    return q_new, T
 
 
 def process_variables(dataset, variable_list, base_state_generator:basic_state_generator_gfdl_shift, IsPerturbation):
@@ -239,7 +192,11 @@ def process_variables(dataset, variable_list, base_state_generator:basic_state_g
     for i in range(1, 7):
         # Open the tile dataset once and modify all variables
         ds_temp = xr.open_dataset(res_path + f'fv_core.res.tile{i}.nc', decode_times=False)
-
+        
+        ds_srf = xr.open_dataset(
+        res_path + f'fv_tracer.res.tile{i}.nc',
+        decode_times=False
+        )
         for var_target in variable_list:
             if (var_target in ds_temp):
                 # Extract the data for the current tile
@@ -254,28 +211,9 @@ def process_variables(dataset, variable_list, base_state_generator:basic_state_g
             #elif var_target == 'phis':
             #    print('dealing with phis')
 
-
-
-
             else:
                 print(f"Variable {var_target} not found in tile {i}. Skipping.")
-        print('Renerate ua...')
-        ua_4d = generate_ua_all_eta(
-            input_nc_path_c96=cache_path + f'c96.tile{i}.nc',
-            eta_level_original=0.5 * (eta_level_original[1:] + eta_level_original[:-1]),
-            phi_shift=Shift,
-            u0=35.0,
-            IsPerturbation = IsPerturbation
-        )
-        if 'ua' in ds_temp.data_vars:
-            ds_temp['ua'].values = ua_4d.values
-            
-            ds_temp['u'].values = np.zeros_like(ds_temp['u'].values)
-            ds_temp['v'].values = np.zeros_like(ds_temp['v'].values)
-            ds_temp['u0'].values = np.zeros_like(ds_temp['u0'].values)
-            ds_temp['v0'].values = np.zeros_like(ds_temp['v0'].values)
-
-            print('Others has been set to 0.')
+        
 
         if 'T' in ds_temp.data_vars:
             print('Converting T_v to T')
@@ -285,6 +223,10 @@ def process_variables(dataset, variable_list, base_state_generator:basic_state_g
             ds_c96.close()
 
             delp = ds_temp['delp'].values #z,y,x
+            eta = 0.5*(eta_level_original[:-1] + eta_level_original[1:])
+            q_finished, T_finished = compute_q_T_iterative(ds_temp['T'].values, RH0, eta)
+            print(q_finished.shape)
+            '''
             pe = np.zeros((33,96,96))
             pe[0,:,:] = 100
             for idx in range(32):
@@ -307,13 +249,28 @@ def process_variables(dataset, variable_list, base_state_generator:basic_state_g
             q = q[np.newaxis,:,:,:]
 
             #print(q)
+            '''
+            ds_temp['T'].values = T_finished
 
-            ds_temp = ds_temp.assign(T=ds_temp['T'] / (1 + 0.608 * q))
+            print('Converting T.')
+        
+        
+        if 'sphum' in ds_srf.data_vars:
+            ds_srf['sphum'].values = q_finished
+            print('Converting q.')
+        else:
+            print(f"[Warning] tile{i} skipped")
+
+        out_name = cache_path + f'fv_tracer.res.tile{i}.nc'
+        ds_srf.to_netcdf(out_name)
+        ds_srf.close()
+        print(f"Saved surface restart tile {i} → {out_name}")
         
         # Save the modified dataset
         ds_temp.to_netcdf(cache_path + f'fv_core.res.tile{i}.nc')
         ds_temp.close()
 
     print("All files have been saved successfully.")
+
 
 process_variables(ds, variable_list, base_state_generator, IsPerturbation=IsPerturbation)

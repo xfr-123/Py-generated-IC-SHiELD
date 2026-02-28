@@ -2,6 +2,25 @@
 
 This project aims to use python to generate idealized initial conditions and test the development of phonomenon in the atmosphere. 
 
+## Requirements
+
+This project requires two distinct Python environments to handle different stages of the workflow:
+
+* **`modify_restart.sh`:** To run this script, the **`esmpy`** environment must be activated. Refer to `esmpy_requirements.txt` for the specific dependency list.
+* **IC Generation:** For all other Python-based Initial Condition (IC) generation processes, please use the **`pygen_clean`** environment as detailed in `pygen_requirements.txt`.
+
+---
+
+## Environment Setup
+If you need to recreate these environments from the requirements files, you can use the following commands:
+
+```bash
+# Create the esmpy environment
+conda create --name esmpy --file esmpy_requirements.txt
+
+# Create the pygen_clean environment
+conda create --name pygen_clean --file pygen_requirements.txt
+```
 ## Work Flow
 
 1. **Cold Start**  
@@ -13,7 +32,7 @@ This project aims to use python to generate idealized initial conditions and tes
     ```
 
 
-2. **Prepare transform data**  
+2. **Prepare transform weights**  
    To convert the latitude - longitude files to 6 tile files that is need for the model input, we need to calculate the weight first.
    ```
    ./modify_restart.sh
@@ -23,12 +42,12 @@ This project aims to use python to generate idealized initial conditions and tes
 3. **Python generate IC**  
    We could use python to generate the initial conditions we want to test in the next step.
    ```
-   python ic_generator.py --IsPerturbation --Shift 10
+   python ic_generator.py --IsPerturbation --Shift 10 --b 2 --n 3 --RH0 0.80
    ```
 
    If we want to do a stable test, we could remove the `--IsPerturbation` order, like:
    ```
-   python ic_generator.py --Shift 10
+   python ic_generator.py --Shift 10 --b 2 --n 3 --RH0 0.80
    ```
 
 
@@ -76,10 +95,6 @@ This project aims to use python to generate idealized initial conditions and tes
 
    You can check your results with `viz.ipynb`
 
-
-## Reletive Slides
-
-The experiment's preliminary results could be found at this [link](https://uillinoisedu-my.sharepoint.com/:p:/g/personal/gzhang13_illinois_edu/EVL23E-EaN9Mo2Rmm3fQgR4BWDUfOQoiToMX_txF01IJnA?e=ERn9o6).
 
 ## Reference
 

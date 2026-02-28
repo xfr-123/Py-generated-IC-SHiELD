@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=2:00:00
-#SBATCH --partition=sandybridge
+#SBATCH --partition=sesempi
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1

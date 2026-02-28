@@ -64,7 +64,7 @@ COMP="repro"       # choices:  debug, repro, prod
     mountain=".F."
     external_ic=".F."
     warm_start=".T."
-    na_init=1
+    na_init=0
     curr_date="0,0,0,0"
 
 if [ ${TYPE}="nh" ]; then
@@ -127,8 +127,9 @@ ${GRID}.${MODE}
 0 0 0 0 0 0
 "grid_spec",              -1,  "months",   1, "days",  "time"
 "atmos_static",           -1,  "hours",    1, "hours", "time"
+"atmos_hourly",             1, "hours",  1, "hours",  "time"
 "atmos_4x_hourly",             15, "minutes",  1, "hours",  "time"
-"atmos_4x_hourly_ave",             15, "minutes",  1, "hours",  "time"
+"atmos_4x_hourly_ave",             1, "hours",  1, "hours",  "time"
 "atmos_daily",                 24, "hours",  1, "days",  "time"
 "atmos_daily_ave",                 24, "hours",  1, "days",  "time"
 # "atmos_10day_ave",                 10, "days",  1, "days",  "time"
@@ -160,7 +161,9 @@ ${GRID}.${MODE}
  "dynamics",  "omg_plev",     "omg_plev",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
  "dynamics",  "ps",           "PRESsfc",     "atmos_4x_hourly",  "all",  .false.,  "none",  2
  "dynamics",  "tq",           "PWAT",        "atmos_4x_hourly",  "all",  .false., "none", 2
- "dynamics",  "prec",         "prec",        "atmos_4x_hourly_ave",  "all",  .true.,  "none", 2
+ "dynamics",  "u100m",     "u100m",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "v100m",     "v100m",    "atmos_4x_hourly",  "all",  .false.,  "none",  2
+ "dynamics",  "pret",         "pret",        "atmos_4x_hourly_ave",  "all",  .true.,  "none", 2
 ### misc. plevs 
  "dynamics",  "vort850",        "VORT850",       "atmos_daily", "all", .false.,  "none", 2
  "dynamics",  "vort500",        "VORT500",       "atmos_daily", "all", .false.,  "none", 2
@@ -187,7 +190,7 @@ ${GRID}.${MODE}
  "dynamics",  "ps",          "PRESsfc",     "atmos_daily", "all", .false., "none", 2
  "dynamics",  "ctp",         "PRESctp",      "atmos_daily", "all", .false., "none", 2
  "dynamics",  "tm",          "TMP500_300", "atmos_daily", "all", .false.,  "none", 2
- "dynamics",  "prec",        "prec", "atmos_daily_ave", "all", .true.,  "none", 2
+ "dynamics",  "pret",        "pret", "atmos_daily_ave", "all", .true.,  "none", 2
 ### Chemistry tracers
  "dynamics",  "acl",         "acl",        "atmos_daily", "all", .false.,  "none", 2
  "dynamics",  "acl2",        "acl2",       "atmos_daily", "all", .false.,  "none", 2
@@ -325,7 +328,7 @@ cat > input.nml <<EOF
        do_vort_damp = .F.
        external_ic = .F. !COLD START
        is_ideal_case = .T.
-       mountain = .F.
+       mountain = .T.
        hord_mt = 10
        hord_vt = 10
        hord_tm = 10
@@ -357,7 +360,7 @@ cat > input.nml <<EOF
 /
 
 &test_case_nml ! cold start
-    test_case = 13
+    test_case = 12
 /
 
 &atmos_model_nml
@@ -429,6 +432,10 @@ cat > input.nml <<EOF
        fix_negative = .true.
        irain_f = 0
        icloud_f = 0
+/
+
+&gfs_physics_nml
+       cloud_gfdl     = .false.
 /
 
 !# From LJZ mar 2019
