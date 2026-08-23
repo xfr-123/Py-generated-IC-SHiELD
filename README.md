@@ -100,4 +100,11 @@ conda create --name pygen_clean --file pygen_requirements.txt
 
 This work is based on the [GFDL's SHiELD build system](https://github.com/NOAA-GFDL/SHiELD_build/tree/main).
 
+## Publication and Revision Notebooks
 
+The reproducible publication notebooks are stored in `publication_notebooks/`. The historical August 2, 2026 figure notebooks are retained, and the current reviewer-stage updates are consolidated in:
+
+- `publication_notebooks/06_revision_updates_20260823.ipynb`
+- `publication_notebooks/revision_20260823/`
+
+The revision bundle includes finalized PNG/PDF figures, exact analysis/plotting scripts, compact supporting tables, a machine-readable manifest, validation notes, and SHA-256 checksums. Large raw SHiELD simulation files are not duplicated in this repository.

@@ -1,0 +1,49 @@
+ensemble,predictor,predictor_label,response,response_label,n,spearman_rho,p_value
+constant_u0,low_level_eady_max_day-1,Low-level Eady growth,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.8694334650856388,9.387079720106159e-15
+constant_u0,low_level_eady_max_day-1,Low-level Eady growth,post_onset_awb_fraction,Post-onset AWB fraction,44,0.7461408625169462,6.130230652806757e-09
+constant_u0,low_level_eady_max_day-1,Low-level Eady growth,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.7578420854019946,1.6649390101339743e-09
+constant_u0,low_level_eady_max_day-1,Low-level Eady growth,max_anticyclone_overlap_lifetime_h,Maximum anticyclone- overlap duration,45,0.8680924775815954,1.1531149811787962e-14
+constant_u0,u_max_initial_ms,Initial Umax,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.9346508563899866,6.313340494700981e-21
+constant_u0,u_max_initial_ms,Initial Umax,post_onset_awb_fraction,Post-onset AWB fraction,44,0.39055040572845545,0.008766135037757373
+constant_u0,u_max_initial_ms,Initial Umax,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.6328308774698621,3.0960079437645876e-06
+constant_u0,u_max_initial_ms,Initial Umax,max_anticyclone_overlap_lifetime_h,Maximum anticyclone- overlap duration,45,0.6364385860921246,2.6120321809328746e-06
+constant_u0,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.48616600790513825,0.0007095080827858014
+constant_u0,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,post_onset_awb_fraction,Post-onset AWB fraction,44,0.48686089413139494,0.0008042841831381472
+constant_u0,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.7070328383155577,5.673597805101762e-08
+constant_u0,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,max_anticyclone_overlap_lifetime_h,Maximum anticyclone- overlap duration,45,0.5632188212429633,5.627209861226369e-05
+constant_u0,positive_shear_layer_depth_hpa,Positive-shear- layer depth,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.8298768897697495,1.8318336337427085e-12
+constant_u0,positive_shear_layer_depth_hpa,Positive-shear- layer depth,post_onset_awb_fraction,Post-onset AWB fraction,44,0.24700016934686508,0.1060072711296125
+constant_u0,positive_shear_layer_depth_hpa,Positive-shear- layer depth,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.4382562439779144,0.0026028682848435215
+constant_u0,positive_shear_layer_depth_hpa,Positive-shear- layer depth,max_anticyclone_overlap_lifetime_h,Maximum anticyclone- overlap duration,45,0.4884953658609651,0.000662792230130278
+constant_u0,initial_flank_shear_s-1,Initial flank shear,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.5479578392621871,9.769729179638066e-05
+constant_u0,initial_flank_shear_s-1,Initial flank shear,post_onset_awb_fraction,Post-onset AWB fraction,44,0.13422800352220704,0.3850242545738799
+constant_u0,initial_flank_shear_s-1,Initial flank shear,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.16129378437506453,0.2898302286380483
+constant_u0,initial_flank_shear_s-1,Initial flank shear,max_anticyclone_overlap_lifetime_h,Maximum anticyclone- overlap duration,45,0.3173295839322336,0.033666126335461094
+constant_u0,barotropic_conversion_positive_ms-2,Positive BT conversion,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.9687747035573122,1.1296242548628316e-27
+constant_u0,barotropic_conversion_positive_ms-2,Positive BT conversion,post_onset_awb_fraction,Post-onset AWB fraction,44,0.7250587241106337,2.604774837481963e-08
+constant_u0,barotropic_conversion_positive_ms-2,Positive BT conversion,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.8101517397849436,1.5696714266163025e-11
+constant_u0,barotropic_conversion_positive_ms-2,Positive BT conversion,max_anticyclone_overlap_lifetime_h,Maximum anticyclone- overlap duration,45,0.8531321835935128,9.931956172318994e-14
+constant_Umax_30_ms,low_level_eady_max_day-1,Low-level Eady growth,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.7371541501976284,7.716926192895773e-09
+constant_Umax_30_ms,low_level_eady_max_day-1,Low-level Eady growth,post_onset_awb_fraction,Post-onset AWB fraction,45,-0.04996053258971051,0.7444863852731072
+constant_Umax_30_ms,low_level_eady_max_day-1,Low-level Eady growth,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.7825329912315482,2.160362705676875e-10
+constant_Umax_30_ms,low_level_eady_max_day-1,Low-level Eady growth,anticyclone_overlap_duration_hours,Maximum anticyclone- overlap duration,45,0.7038086696765569,6.921945069389346e-08
+constant_Umax_30_ms,u_max_initial_ms,Initial Umax,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.6735177865612647,3.9755897317808704e-07
+constant_Umax_30_ms,u_max_initial_ms,Initial Umax,post_onset_awb_fraction,Post-onset AWB fraction,45,0.19597335747472563,0.19698539822809558
+constant_Umax_30_ms,u_max_initial_ms,Initial Umax,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.6246878235532056,4.508325913769137e-06
+constant_Umax_30_ms,u_max_initial_ms,Initial Umax,anticyclone_overlap_duration_hours,Maximum anticyclone- overlap duration,45,0.2310226753942523,0.1267919498409388
+constant_Umax_30_ms,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.5815546772068511,2.795083063230536e-05
+constant_Umax_30_ms,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,post_onset_awb_fraction,Post-onset AWB fraction,45,0.5021400391660089,0.0004403827685876794
+constant_Umax_30_ms,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.5666389709561325,4.9541722780303204e-05
+constant_Umax_30_ms,rossby_penetration_theory_km,Rossby penetration H_R = fL/N,anticyclone_overlap_duration_hours,Maximum anticyclone- overlap duration,45,0.1578149764886578,0.30049607476117945
+constant_Umax_30_ms,positive_shear_layer_depth_hpa,Positive-shear- layer depth,peak_eke_m2s-2,Peak 300-hPa EKE,45,-0.5972598827888348,1.4829910344285282e-05
+constant_Umax_30_ms,positive_shear_layer_depth_hpa,Positive-shear- layer depth,post_onset_awb_fraction,Post-onset AWB fraction,45,0.46152449869256307,0.0014172186476753186
+constant_Umax_30_ms,positive_shear_layer_depth_hpa,Positive-shear- layer depth,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,-0.5322812552274304,0.00016757757385154422
+constant_Umax_30_ms,positive_shear_layer_depth_hpa,Positive-shear- layer depth,anticyclone_overlap_duration_hours,Maximum anticyclone- overlap duration,45,-0.5020401737487251,0.0004417299404105994
+constant_Umax_30_ms,initial_flank_shear_s-1,Initial flank shear,peak_eke_m2s-2,Peak 300-hPa EKE,45,-0.6501976284584979,1.338164760476059e-06
+constant_Umax_30_ms,initial_flank_shear_s-1,Initial flank shear,post_onset_awb_fraction,Post-onset AWB fraction,45,0.044490888167338996,0.7716639166514607
+constant_Umax_30_ms,initial_flank_shear_s-1,Initial flank shear,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,-0.5968561818970747,1.5079806016102919e-05
+constant_Umax_30_ms,initial_flank_shear_s-1,Initial flank shear,anticyclone_overlap_duration_hours,Maximum anticyclone- overlap duration,45,-0.2443331661043604,0.10576262121654163
+constant_Umax_30_ms,barotropic_conversion_positive_ms-2,Positive BT conversion,peak_eke_m2s-2,Peak 300-hPa EKE,45,0.8752305665349142,3.755422432870512e-15
+constant_Umax_30_ms,barotropic_conversion_positive_ms-2,Positive BT conversion,post_onset_awb_fraction,Post-onset AWB fraction,45,0.26060854583177434,0.08380219151026827
+constant_Umax_30_ms,barotropic_conversion_positive_ms-2,Positive BT conversion,eddy_minus10_coalescence_count,−10-hPa eddy-SLP coalescence count,45,0.8673532324692806,1.2903531599818277e-14
+constant_Umax_30_ms,barotropic_conversion_positive_ms-2,Positive BT conversion,anticyclone_overlap_duration_hours,Maximum anticyclone- overlap duration,45,0.5909330727141057,1.9220080789471652e-05

@@ -1,0 +1,10 @@
+panel,day,field,high_center_count,box_bounds
+a,7,500-hPa omega,1,
+b,8,500-hPa omega,2,
+c,9,500-hPa omega,2,
+d,10,500-hPa omega,2,"100-250E, 35-65N"
+e,11,500-hPa omega,2,
+f,12,500-hPa omega,2,"100-250E, 35-65N"
+g,10,1000-hPa temperature anomaly,2,"100-250E, 35-65N"
+h,12,1000-hPa temperature anomaly,2,"100-250E, 35-65N"
+i,14,1000-hPa temperature anomaly,2,"100-250E, 35-65N"

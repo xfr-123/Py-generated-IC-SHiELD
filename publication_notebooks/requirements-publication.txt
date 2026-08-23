@@ -1,0 +1,20 @@
+# Core notebook and plotting stack
+jupyter
+nbformat
+nbclient
+numpy
+pandas
+xarray
+scipy
+matplotlib
+pillow
+
+# NetCDF and map plotting used by full figure regeneration
+netCDF4
+cartopy
+
+# Feature-detection packages used by selected heavy-processing sections
+geopandas
+shapely
+wavebreaking
+contrack
