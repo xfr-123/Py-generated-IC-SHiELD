@@ -1,0 +1,32 @@
+{
+  "requested_latitude_domain_degN": [
+    25.0,
+    90.0
+  ],
+  "actual_grid_centers_degN": [
+    25.5,
+    89.5
+  ],
+  "eke_cases": 90,
+  "eke_rows": 32400,
+  "eady_standard_cases": 45,
+  "heat_flux_cases": 90,
+  "figure5_eke_ymax_m2_s-2": 80.0,
+  "figure7_eke_ymax_m2_s-2": 260.0,
+  "figure7_heat_flux_xlim_K_m_s-1": [
+    -47.669858791072194,
+    147.4170368455096
+  ],
+  "png_dimensions_pixels": {
+    "Figure5_EKE_evolution_25_90N_with_Eady.png": [
+      4729,
+      3974
+    ],
+    "Figure7_vertical_structure_eddy_activity_25_90N_vT.png": [
+      2207,
+      3308
+    ]
+  },
+  "rechecked_standard_b2_mean_vT_at_1000hPa_K_m_s-1": 19.104335815345888,
+  "rechecked_u30_b2_mean_vT_at_1000hPa_K_m_s-1": 19.043975772496385
+}

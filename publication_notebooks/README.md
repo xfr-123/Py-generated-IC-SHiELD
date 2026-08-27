@@ -66,3 +66,9 @@ publication_notebooks/run_notebook_cells.py \
 publication_notebooks/06_revision_updates_20260823.ipynb \
 --status-dir publication_notebooks/validation/status_revision_20260823
 ```
+
+## Latest EKE-domain update — August 27, 2026
+
+`07_revision_updates_20260827.ipynb` and `revision_20260827/` supersede the EKE-related portions of the August 23 reviewer-stage snapshot. The update uses a 25–90°N area- and mass-weighted EKE domain, recomputes Figure 5 initial Eady annotations over the same domain, rediagnoses all Figure 7 50–80% EKE-growth windows, and reaverages the Figure 7 eddy heat-flux profiles. The earlier `revision_20260823/` directory is retained unchanged as a historical snapshot.
+
+The new snapshot includes final PNG/PDF figures, exact scripts, compact tables for all 90 simulations, `ENVIRONMENT.md`, `VALIDATION.md`, `revision_manifest.csv`, and `SHA256SUMS`. No new dependency beyond `requirements-publication.txt` is required.

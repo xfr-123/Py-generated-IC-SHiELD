@@ -108,3 +108,12 @@ The reproducible publication notebooks are stored in `publication_notebooks/`. T
 - `publication_notebooks/revision_20260823/`
 
 The revision bundle includes finalized PNG/PDF figures, exact analysis/plotting scripts, compact supporting tables, a machine-readable manifest, validation notes, and SHA-256 checksums. Large raw SHiELD simulation files are not duplicated in this repository.
+
+## Latest EKE-domain revision
+
+The latest EKE-related update is maintained separately from the historical August 23 snapshot:
+
+- `publication_notebooks/07_revision_updates_20260827.ipynb`
+- `publication_notebooks/revision_20260827/`
+
+It recomputes area- and mass-weighted EKE and initial Eady context over 25–90°N, rediagnoses the Figure 7 50–80% EKE-growth windows, and updates the eddy-heat-flux profiles. The exact scripts, compact tables, final PNG/PDF figures, environment record, validation notes, and SHA-256 manifest are included. Original multi-GB model files remain external inputs and are not copied into the repository.
